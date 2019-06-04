@@ -28,7 +28,7 @@ colors = ('b', 'g', 'r', 'c',
 
 
 def plot(data, categories, num=1, n_rows=1, n_cols=1, title=None, show=False):
-    """Plot 2-dimensional data, and compare to prediction, if model's given"""
+    """Plot 2-dimensional data"""
     plt.subplot(n_rows, n_cols, num)
 
     i = 0
