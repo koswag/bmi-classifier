@@ -18,7 +18,7 @@ def normalize(data):
     return preprocessing.normalize(data)
 
 
-def col(matrix: list, i: int) -> list:
+def col(matrix, i):
     """Return i-th column of matrix."""
     return [row[i] for row in matrix]
 
