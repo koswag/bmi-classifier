@@ -10,7 +10,7 @@ def set_path(path):
 
 def read_bmi(fname):
     male, female = [], []
-    path = _path + f'\\{fname}'
+    path = _path + r'\{}'.format(fname)
     classes = ('niedowaga', 'norma', 'nadwaga')
 
     with open(path) as file:
