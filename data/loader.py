@@ -1,6 +1,5 @@
 from random import random
 
-# _path = '/Users/koswag/Desktop/zad1/data'
 _path = r'C:\Users\kokos\Desktop\bmi\data'
 
 
