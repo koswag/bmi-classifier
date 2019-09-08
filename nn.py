@@ -1,17 +1,44 @@
 import numpy as np
 import random
 
-_learn_rate = 0.01
 
+class Linear:
+    """ Class representing a fully connected linear layer. """
+    def __init__(self, in_count, out_count, act_fun):
+        self.weights = np.random.rand(out_count, in_count)
+        self.b = np.random.rand(out_count)
+        self.act = act_fun
 
-def set_learn_rate(lr):
-    global _learn_rate
-    _learn_rate = lr
+        self.x = np.zeros(in_count)
+        self.net = np.zeros(out_count)
+
+    def output(self, x):
+        self.x = np.array(x)
+        net = self.weights @ self.x + self.b
+        self.net = net
+        return self.act(net)
+
+    def update(self, delta, learn_rate):
+        err = self.deriv(self.net) * delta
+        self.weights += np.outer(err, self.x) * learn_rate
+        self.b += err * learn_rate
+
+    def deriv(self, x):
+        if self.act == sigmoid:
+            return sig_deriv(x)
+        elif self.act == relu:
+            return relu_deriv(x)
+        elif self.act == tanh:
+            return tanh_deriv(x)
+
+    def __call__(self, x):
+        return self.output(x)
 
 
 class Model:
-    def __init__(self, *layers):
+    def __init__(self, *layers, learn_rate=0.01):
         self.layers = layers
+        self.lr = learn_rate
 
     def forward(self, x):
         for layer in self.layers:
@@ -19,89 +46,83 @@ class Model:
         return softmax(x)
 
     def backward(self, y, d):
-        out = self.layers[-1]
-        delta = d - y
-        out.update(delta)
+        y, d = np.array(y), np.array(d)
 
-        prev = out
+        out_layer = self.layers[-1]
+        delta = d - y
+        out_layer.update(delta, self.lr)
+
+        prev = out_layer
         for layer in reversed(self.layers[:-1]):
             delta = np.dot(prev.weights.T, delta)
-            layer.update(delta)
+            layer.update(delta, self.lr)
             prev = layer
 
     def __getitem__(self, i):
         return self.layers[i]
 
     def __call__(self, x):
-        x = np.array(x)
         return self.forward(x)
-
-
-class Linear:
-    def __init__(self, in_count, out_count, act):
-        self.weights = np.random.rand(out_count, in_count)
-        self.b = np.random.rand(out_count)
-        self.act = act
-
-    def update(self, delta):
-        err = self.deriv(self.net) * delta
-        self.weights += np.outer(err, self.x) * _learn_rate
-        self.b += err * _learn_rate
-
-    def deriv(self, x):
-        if self.act == sigmoid:
-            return sig_deriv(x)
-        elif self.act == relu:
-            return relu_deriv(x)
-
-    def __call__(self, x):
-        self.x = np.array(x)
-        net = np.dot(self.weights, x) + self.b
-        self.net = net
-        return self.act(net)
 
 
 class Classifier:
     def __init__(self, model):
         self.model = model
 
-    def __call__(self, x):
+    def output(self, x):
         return response(self.model(x))
 
     def train(self, train_data, test_data, target_acc):
-        e = 1
+        train_data, test_data = list(train_data.entries), list(test_data.entries)
+
         prev_acc = 0
-        accuracy = 0
-        while accuracy < target_acc:
-            # training step
-            correct = 0
-            random.shuffle(train_data)
-            for row in train_data:
-                x = np.array(row[0])
-                d = np.array(row[1])
-                y = self.model(x)
-                if validate(response(y), d):
-                    correct += 1
-                self.model.backward(y, d)
+        test_accuracy = 0
 
-            train_acc = correct/len(train_data)
+        e = 1
+        while test_accuracy < target_acc:
+            train_accuracy = self.train_step(train_data)
+            test_accuracy = self.validation_step(test_data)
 
-            # validation step
-            correct = 0
-            for row in test_data:
-                x = np.array(row[0])
-                d = np.array(row[1])
-                res = response(self.model(x))
-                if validate(res, d):
-                    correct += 1
-
-            accuracy = correct / len(test_data)
-            if accuracy != prev_acc:
-                print(f'Epoch {e}: \n\tTrain: {train_acc * 100}\n\tTest: {accuracy * 100}')
-            prev_acc = accuracy
+            if test_accuracy != prev_acc:
+                print(f'Epoch {e}: \n\tTrain: {(train_accuracy * 100):.2f}\n\tTest: {(test_accuracy * 100):.2f}')
+            prev_acc = test_accuracy
 
             e += 1
-        return accuracy, e
+        return test_accuracy, e
+
+    def train_step(self, train_data):
+        n_correct = 0
+        random.shuffle(train_data)
+
+        for row in train_data:
+            x, d = row
+            y = self(x)
+
+            if validate(y, d):
+                n_correct += 1
+            self.model.backward(y, d)
+
+        return n_correct / len(train_data)
+
+    def validation_step(self, test_data):
+        n_correct = 0
+
+        for row in test_data:
+            x, d = row
+            y = self(x)
+
+            if validate(y, d):
+                n_correct += 1
+
+        return n_correct / len(test_data)
+
+    def __call__(self, x):
+        return self.output(x)
+
+
+def response(output):
+    res = max(output)
+    return [int(x == res) for x in output]
 
 
 def validate(y, d):
@@ -112,17 +133,13 @@ def validate(y, d):
         return True
 
 
-def response(output):
-    res = max(output)
-    return [1 if x == res else 0 for x in output]
-
-
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 
 def sig_deriv(x):
-    return sigmoid(x)*(1 - sigmoid(x))
+    sig = sigmoid(x)
+    return sig * (1 - sig)
 
 
 def relu(x):
@@ -135,12 +152,14 @@ def relu_deriv(x):
     return x
 
 
+def tanh(x):
+    return np.tanh(x)
+
+
+def tanh_deriv(x):
+    return 1.0 - tanh(x)**2
+
+
 def softmax(x):
     e_x = np.exp(x - np.max(x))
     return e_x / e_x.sum(axis=0)
-
-
-def io_count(data):
-    i = len(data[0][0])
-    o = len(data[0][1])
-    return i, o
