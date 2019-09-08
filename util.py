@@ -1,39 +1,121 @@
+""" Utility module for processing and displaying data.
+"""
+import os
+
 import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
-from sklearn import preprocessing
+from sklearn.preprocessing import normalize
 
 
-def split(data, test_size):
-    """Split dataset to train and test set."""
-    in_train, in_test, out_train, out_test = train_test_split(col(data, 0), col(data, 1), test_size=test_size)
-    in_train, in_test = normalize(in_train), normalize(in_test)
+class DataSet:
+    """ Class representing a dataset of pairs (x, y)
 
-    train_data = [(in_train[i], out_train[i]) for i in range(len(in_train))]
-    test_data = [(in_test[i], out_test[i]) for i in range(len(in_test))]
-    return train_data, test_data
+    - x - input values
 
+    - y - expected output value(s)
+    """
+    def __init__(self, entries):
+        self.entries = list(entries)
 
-def normalize(data):
-    return preprocessing.normalize(data)
+    @staticmethod
+    def from_io(inputs, outputs):
+        entries = zip(inputs, outputs)
+        return DataSet(entries)
+
+    @staticmethod
+    def empty():
+        return DataSet([])
+
+    @property
+    def inputs(self):
+        return col(self.entries, 0)
+
+    @property
+    def outputs(self):
+        return col(self.entries, 1)
+
+    def add(self, x, y):
+        self.entries.append((x, y))
+
+    def subsets(self, categories=None):
+        if not categories:
+            categories = unique(self.outputs)
+        for c in categories:
+            yield self.subset(c)
+
+    def subset(self, category):
+        filtered = [(x, y) for x, y in self.entries if y == category]
+        return DataSet(filtered)
+
+    def __getitem__(self, i):
+        return self.entries[i]
 
 
 def col(matrix, i):
-    """Return i-th column of matrix."""
+    """ Get i-th column of a matrix. """
     return [row[i] for row in matrix]
 
 
-colors = ('b', 'g', 'r', 'c',
-          'm', 'y', 'k', 'w')
+def unique(arr):
+    """ Get list of unique values from a list. """
+    res = []
+    for x in arr:
+        if x not in res:
+            res.append(x)
+    return res
 
 
-def plot(data, categories, num=1, n_rows=1, n_cols=1, title=None, show=False):
-    """Plot 2-dimensional data"""
+def split(data: DataSet, test_size=0.4, normalized=True):
+    """ Split dataset to train and test set.
+
+        :param data: DataSet to split
+        :param test_size: Desired test size between 0 and 1.
+        :param normalized: Bool indicating whether inputs are to be normalized.
+
+        :return: Train and test set as a tuple
+    """
+    if not 0 < test_size < 1:
+        raise ValueError('Test size has to be between 0 and 1')
+
+    x, y = data.inputs, data.outputs
+    in_train, in_test, out_train, out_test = train_test_split(x, y, test_size=test_size)
+
+    if normalized:
+        in_train, in_test = normalize(in_train), normalize(in_test)
+
+    train_data = DataSet.from_io(in_train, out_train)
+    test_data = DataSet.from_io(in_test, out_test)
+    return train_data, test_data
+
+
+def get_path(relative_path):
+    script_dir = os.path.dirname(__file__)
+    absolute = os.path.abspath(script_dir)
+    return os.path.join(absolute, relative_path)
+
+
+_colors = ('b', 'g', 'r', 'c',
+           'm', 'y', 'k', 'w')
+
+
+def plot(data: DataSet, categories=None, title=None, show=False, num=1, n_rows=1, n_cols=1):
+    """ Plot 2-dimensional data.
+
+        :param data: DataSet with 2D input.
+        :param categories: Complete list of possible output categories
+        :param title: Figure title.
+        :param show: Bool indicating whether plot is to be shown.
+        :param num: Subplot's positional number on the grid.
+        :param n_rows: Number of rows in the grid.
+        :param n_cols: Number of columns in the grid.
+    """
     plt.subplot(n_rows, n_cols, num)
 
     i = 0
-    for sub in subsets(data, categories):
-        plt.plot(col(sub, 0), col(sub, 1), f'{colors[i]}o')
+    for sub in data.subsets(categories):
+        x, y, = col(sub.inputs, 0), col(sub.inputs, 1)
+        plt.plot(x, y, f'{_colors[i]}o')
         i += 1
 
     if title:
@@ -41,18 +123,3 @@ def plot(data, categories, num=1, n_rows=1, n_cols=1, title=None, show=False):
 
     if show:
         plt.show()
-
-
-def subsets(data, categories):
-    for c in categories:
-        yield col(subset(data, c), 0)
-
-
-def subset(data, category):
-    return [row for row in data if list(row[-1]) == category]
-
-
-def line_eq(w, c):
-    a = -w[0] / w[1]
-    b = -c / w[1]
-    return a, b
