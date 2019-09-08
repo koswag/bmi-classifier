@@ -71,7 +71,7 @@ def split(data: DataSet, test_size=0.4, normalized=True):
 
         :param data: DataSet to split
         :param test_size: Desired test size between 0 and 1.
-        :param normalized: Bool indicating whether inputs are to be normalized.
+        :param normalized: Bool indicating whether inputs should be normalized.
 
         :return: Train and test set as a tuple
     """
