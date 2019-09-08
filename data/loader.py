@@ -1,49 +1,50 @@
-from random import random
+from util import *
 
-_path = r'C:\Users\kokos\Desktop\bmi\data'
-
-
-def set_path(path):
-    global _path
-    _path = path
+_bmi_classes = ('niedowaga', 'norma', 'nadwaga')
 
 
-def read_bmi(fname):
-    male, female = [], []
-    path = _path + r'\{}'.format(fname)
-    classes = ('niedowaga', 'norma', 'nadwaga')
-
+def read_bmi(path):
+    male, female = DataSet.empty(), DataSet.empty()
     with open(path) as file:
         for line in file:
-            values = line.split(',')
+            gender, values, cls = parse_bmi(line)
 
-            gender = values[0]
-            cl = name_to_value(values[-1], classes)
-            values = [float(val) for val in values[1:-1]]
-
-            entry = values, cl
-            if cl != [1, 0, 0] or (entry[0][1] < 110 and random() > 0.5):
-                if gender == "Male":
-                    male.append(entry)
-                elif gender == "Female":
-                    female.append(entry)
+            if gender == "Male":
+                male.add(values, cls)
+            elif gender == "Female":
+                female.add(values, cls)
+            else:
+                raise ValueError(f'{gender} is not a gender.')
 
     return male, female
 
 
-def read(fname, classes=None):
-    data = []
-    path = _path + f'\\{fname}'
+def parse_bmi(line):
+    values = line.split(',')
+
+    gender = values[0].strip()
+    values = [float(val) for val in values[1:-1]]
+    cls = name_to_value(values[-1], _bmi_classes)
+
+    return gender, values, cls
+
+
+def read(path, classes=None):
+    entries = DataSet.empty()
     with open(path) as file:
         for line in file:
-            values = line.split(',')
+            values, cls = parse_line(line, classes)
+            entries.add(values, cls)
+    return DataSet(entries)
 
-            cl = name_to_value(values[-1], classes)
-            values = [float(val) for val in values[:-1]]
 
-            entry = list(values), cl
-            data.append(entry)
-    return data
+def parse_line(line, classes):
+    values = line.split(',')
+
+    values = [float(val) for val in values[:-1]]
+    cls = name_to_value(values[-1], classes)
+
+    return values, cls
 
 
 def name_to_value(name, classes):
