@@ -6,41 +6,44 @@ categories = [[0, 0, 1],
               [0, 1, 0],
               [1, 0, 0]]
 
+file = r'data\bmi_data.txt'
+
 
 def main():
-    male, female = loader.read_bmi('bmi_data.txt')
+    path = get_path(file)
+    male, female = loader.read_bmi(path)
 
     dataset = male
+    plot(dataset, title='Data', show=True)
+    n_in = len(dataset.inputs[0])
+    n_out = len(dataset.outputs[0])
+
     train_data, test_data = split(dataset, test_size=0.4)
 
-    plot(dataset, categories, title='Data', show=True)
-
-    n_in = len(dataset[0][0])
-    n_out = len(dataset[0][1])
     model = nn.Model(
-        nn.Linear(n_in, 8, nn.sigmoid),
-        nn.Linear(8, 8, nn.sigmoid),
+        nn.Linear(n_in, 32, nn.sigmoid),
+        nn.Linear(32, 8, nn.sigmoid),
         nn.Linear(8, n_out, nn.sigmoid)
     )
 
     bmi = nn.Classifier(model)
-    bmi.train(train_data, test_data, 0.93)
+    bmi.train(train_data, test_data, target_acc=0.92)
 
     res = result(bmi, dataset)
 
     plot(dataset, categories, n_cols=2, title='Data')
-    plot(res, categories, num=2, n_cols=2, title='Prediction', show=True)
+    plot(res, categories, title='Prediction', show=True, num=2, n_cols=2)
 
 
-def result(classifier, data):
-    normal_in = normalize(col(data, 0))
+def result(classifier: nn.Classifier, data: DataSet):
+    normal_in = normalize(data.inputs)
 
-    res = []
+    res = DataSet.empty()
     i = 0
     for x in normal_in:
-        raw = data[i][0]
+        raw = data.inputs[i]
         out = classifier(x)
-        res.append((raw, out))
+        res.add(raw, out)
         i += 1
     return res
 
